@@ -32,16 +32,22 @@ tmux set-environment -g COLORFGBG "$COLORFGBG"
 
 # Catppuccin's reset also clears user overrides, so restore the dotfiles
 # presentation before rebuilding its generated window formats once more.
-tmux set-option -g @catppuccin_window_status_style "rounded"
+tmux set-option -g @catppuccin_window_status_style 'custom'
+tmux set-option -g @catppuccin_window_left_separator '#[fg=#{E:@catppuccin_window_number_color},bg=default]#[fg=#{E:@thm_crust},bg=#{E:@catppuccin_window_number_color}]'
+tmux set-option -g @catppuccin_window_middle_separator ' '
+tmux set-option -g @catppuccin_window_right_separator '#[fg=#{E:@catppuccin_window_text_color},bg=default]#[default]'
+tmux set-option -g @catppuccin_window_current_left_separator '#[fg=#{E:@catppuccin_window_current_number_color},bg=default]#[fg=#{E:@thm_crust},bg=#{E:@catppuccin_window_current_number_color}]'
+tmux set-option -g @catppuccin_window_current_middle_separator ' '
+tmux set-option -g @catppuccin_window_current_right_separator '#[fg=#{E:@catppuccin_window_current_text_color},bg=default]#[default]'
 tmux set-option -g @catppuccin_window_text ' #{?automatic-rename,#{?#{m/r:^(bash|zsh|fish|sh)$,#{pane_current_command}},󰉋 #{?#{==:#{pane_current_path},#{@dotfiles_home}},~,#{b:pane_current_path}},#{pane_current_command} · #{=/15/…:pane_title}},#W}'
 tmux set-option -g @catppuccin_window_current_text ' #{?automatic-rename,#{?#{m/r:^(bash|zsh|fish|sh)$,#{pane_current_command}},󰉋 #{?#{==:#{pane_current_path},#{@dotfiles_home}},~,#{b:pane_current_path}},#{pane_current_command} · #{=/15/…:pane_title}},#W}'
 tmux set-option -g @catppuccin_date_time_text "%m-%d %H:%M"
-tmux set-option -g @catppuccin_status_background '#{@thm_bg}'
+tmux set-option -g @catppuccin_status_background 'none'
 tmux set-option -g @catppuccin_status_session_icon_fg '#{@thm_crust}'
 tmux set-option -g @catppuccin_status_session_text_fg '#{@thm_fg}'
 tmux set-option -g @catppuccin_status_session_text_bg '#{@thm_surface_0}'
 tmux set-option -g @catppuccin_window_current_text_color '#{@thm_overlay_0}'
-tmux set-option -gu @catppuccin_window_current_left_separator
-tmux set-option -gu @catppuccin_window_current_middle_separator
-tmux set-option -gu @catppuccin_window_current_right_separator
 "$PLUGIN" >/dev/null 2>&1 || true
+# The plugin restores solid alert backgrounds on every theme rebuild.
+tmux set-option -g window-status-activity-style default
+tmux set-option -g window-status-bell-style default
