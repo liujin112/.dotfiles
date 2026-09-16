@@ -16,3 +16,6 @@ export UV_CACHE_DIR="${HOME}/.persistent/cache/uv"
 
 # Set conda cache dir to persistent folder
 export CONDA_PKGS_DIRS="${HOME}/.persistent/cache/conda"
+
+# Set skills-manager home dir to persistent folder
+export SKILLS_HOME="${HOME}/.persistent/skills"
