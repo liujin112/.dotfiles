@@ -50,6 +50,7 @@
     - persistent/claude/file-history
     - persistent/Downloads
     - persistent/Projects
+    - persistent/Workbench
     - persistent/autojump
 
 - link:
@@ -106,6 +107,9 @@
     ~/Projects:
       path: persistent/Projects
       if: '[ ! -e "$HOME/Projects" ] || [ -L "$HOME/Projects" ]'
+    ~/Workbench:
+      path: persistent/Workbench
+      if: '[ ! -e "$HOME/Workbench" ] || [ -L "$HOME/Workbench" ]'
     ~/.local/share/autojump: # Cached path db for autojump
       path: persistent/autojump
       if: '[ "$(uname -s)" = "Linux" ]'
