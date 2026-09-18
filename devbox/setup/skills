@@ -1,0 +1,93 @@
+#!/usr/bin/env bash
+
+set -Eeuo pipefail
+
+INSTALLER_URL="${SKILLS_INSTALLER_URL:-https://raw.githubusercontent.com/yaojie-shen/Skills-Manager-TUI/main/install.sh}"
+FORCE_INSTALL=0
+
+DEVBOX_UTILS="${DEVBOX_UTILS:-${DEVBOX_ROOT:-${HOME}/.devbox}/libexec/devbox-utils}"
+if [[ ! -f "$DEVBOX_UTILS" ]]; then
+  echo "Error: devbox-utils not found at: $DEVBOX_UTILS" >&2
+  exit 1
+fi
+# shellcheck disable=SC1090
+source "$DEVBOX_UTILS"
+
+usage() {
+  cat <<EOF
+Usage: $(basename "$0") [options]
+
+Install Skills Manager TUI using its official installer.
+
+Options:
+  -f, --force    Run the installer even when skills is already available
+  -h, --help     Show this help message
+
+Environment:
+  SKILLS_INSTALLER_URL    Override the installer URL
+
+Examples:
+  $(basename "$0")
+  $(basename "$0") --force
+EOF
+}
+
+check_requirements() {
+  local missing=()
+
+  command -v curl >/dev/null 2>&1 || missing+=(curl)
+  command -v mktemp >/dev/null 2>&1 || missing+=(mktemp)
+  command -v sh >/dev/null 2>&1 || missing+=(sh)
+
+  if [[ "${#missing[@]}" -gt 0 ]]; then
+    error "Missing required command(s): ${missing[*]}"
+    exit 1
+  fi
+}
+
+install_skills() (
+  local tmp_dir installer
+
+  tmp_dir="$(mktemp -d)"
+  installer="${tmp_dir}/install.sh"
+  trap 'rm -rf "$tmp_dir"' EXIT
+
+  info "Downloading the Skills Manager TUI installer..."
+  curl -fsSL "$INSTALLER_URL" -o "$installer"
+
+  info "Installing Skills Manager TUI..."
+  sh "$installer"
+)
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+  -f | --force)
+    FORCE_INSTALL=1
+    ;;
+  -h | --help)
+    usage
+    exit 0
+    ;;
+  *)
+    error "Unknown option: $1"
+    usage >&2
+    exit 1
+    ;;
+  esac
+  shift
+done
+
+if [[ "$FORCE_INSTALL" -eq 0 ]] && command -v skills >/dev/null 2>&1; then
+  success "Skills Manager TUI is already installed: $(command -v skills)"
+  exit 0
+fi
+
+check_requirements
+install_skills
+
+if command -v skills >/dev/null 2>&1; then
+  success "Skills Manager TUI installed successfully: $(command -v skills)"
+else
+  warning "Installer finished, but skills is not available in the current PATH"
+  warning "Start a new shell, then run: skills"
+fi
