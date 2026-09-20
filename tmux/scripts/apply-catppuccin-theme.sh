@@ -3,10 +3,19 @@
 # reloads can deadlock with programs in a display-popup that query tmux.
 set -uo pipefail
 
-PLUGIN="${HOME}/.tmux/plugins/tmux/catppuccin.tmux"
+PLUGIN_DIR="${HOME}/.tmux/plugins/tmux"
+OPTIONS="${PLUGIN_DIR}/catppuccin_options_tmux.conf"
+THEME="${PLUGIN_DIR}/catppuccin_tmux.conf"
 LOCK="dotfiles-catppuccin-theme"
+PALETTE_OPTIONS=(
+  @thm_bg @thm_fg @thm_rosewater @thm_flamingo @thm_pink @thm_mauve
+  @thm_red @thm_maroon @thm_peach @thm_yellow @thm_green @thm_teal
+  @thm_sky @thm_sapphire @thm_blue @thm_lavender @thm_subtext_1
+  @thm_subtext_0 @thm_overlay_2 @thm_overlay_1 @thm_overlay_0
+  @thm_surface_2 @thm_surface_1 @thm_surface_0 @thm_mantle @thm_crust
+)
 
-[ -f "$PLUGIN" ] || exit 0
+[ -f "$OPTIONS" ] && [ -f "$THEME" ] || exit 0
 tmux wait-for -L "$LOCK" >/dev/null 2>&1 || exit 0
 trap 'tmux wait-for -U "$LOCK" >/dev/null 2>&1 || true' EXIT
 
@@ -25,29 +34,24 @@ case "$FLAVOR" in
     ;;
 esac
 
-tmux set-option -g @catppuccin_flavor "$FLAVOR"
-tmux set-option -g @catppuccin_reset "true"
-tmux set-environment -g COLORFGBG "$COLORFGBG"
-"$PLUGIN" >/dev/null 2>&1 || exit 0
+# Repeated terminal theme notifications are common. Avoid rebuilding when a
+# queued worker has already converged on the newest requested flavor.
+if [ "$(tmux show-option -gqv @catppuccin_flavor)" = "$FLAVOR" ]; then
+  exit 0
+fi
 
-# Catppuccin's reset also clears user overrides, so restore the dotfiles
-# presentation before rebuilding its generated window formats once more.
-tmux set-option -g @catppuccin_window_status_style 'custom'
-tmux set-option -g @catppuccin_window_left_separator '#[fg=#{E:@catppuccin_window_number_color},bg=default]#[fg=#{E:@thm_crust},bg=#{E:@catppuccin_window_number_color}]'
-tmux set-option -g @catppuccin_window_middle_separator ' '
-tmux set-option -g @catppuccin_window_right_separator '#[fg=#{E:@catppuccin_window_text_color},bg=default]#[default]'
-tmux set-option -g @catppuccin_window_current_left_separator '#[fg=#{E:@catppuccin_window_current_number_color},bg=default]#[fg=#{E:@thm_crust},bg=#{E:@catppuccin_window_current_number_color}]'
-tmux set-option -g @catppuccin_window_current_middle_separator ' '
-tmux set-option -g @catppuccin_window_current_right_separator '#[fg=#{E:@catppuccin_window_current_text_color},bg=default]#[default]'
-tmux set-option -g @catppuccin_window_text ' #{?automatic-rename,#{?#{m/r:^(bash|zsh|fish|sh)$,#{pane_current_command}},󰉋 #{?#{==:#{pane_current_path},#{@dotfiles_home}},~,#{b:pane_current_path}},#{pane_current_command} · #{=/15/…:pane_title}},#W}'
-tmux set-option -g @catppuccin_window_current_text ' #{?automatic-rename,#{?#{m/r:^(bash|zsh|fish|sh)$,#{pane_current_command}},󰉋 #{?#{==:#{pane_current_path},#{@dotfiles_home}},~,#{b:pane_current_path}},#{pane_current_command} · #{=/15/…:pane_title}},#W}'
-tmux set-option -g @catppuccin_date_time_text "%m-%d %H:%M"
-tmux set-option -g @catppuccin_status_background 'none'
-tmux set-option -g @catppuccin_status_session_icon_fg '#{@thm_crust}'
-tmux set-option -g @catppuccin_status_session_text_fg '#{@thm_fg}'
-tmux set-option -g @catppuccin_status_session_text_bg '#{@thm_surface_0}'
-tmux set-option -g @catppuccin_window_current_text_color '#{@thm_overlay_0}'
-"$PLUGIN" >/dev/null 2>&1 || true
-# The plugin restores solid alert backgrounds on every theme rebuild.
-tmux set-option -g window-status-activity-style default
-tmux set-option -g window-status-bell-style default
+# Catppuccin's palette files use "set -o", so remove only the old palette
+# before loading the new one. Keep all presentation options in place: using
+# @catppuccin_reset would temporarily replace the custom window layout with
+# Catppuccin defaults and then require a second visible rebuild.
+tmux_command=(tmux set-option -g @catppuccin_flavor "$FLAVOR")
+for option in "${PALETTE_OPTIONS[@]}"; do
+  tmux_command+=(\; set-option -gu "$option")
+done
+tmux_command+=(\; set-environment -g COLORFGBG "$COLORFGBG"
+  \; source-file "$OPTIONS"
+  \; source-file "$THEME"
+  \; set-option -g window-status-separator ''
+  \; set-option -g window-status-activity-style default
+  \; set-option -g window-status-bell-style default)
+"${tmux_command[@]}" >/dev/null 2>&1 || exit 0
