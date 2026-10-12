@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
 
-DEVBOX_UTILS="${DEVBOX_UTILS:-${DEVBOX_ROOT:-${HOME}/.devbox}/libexec/devbox-utils}"
-if [[ ! -f "$DEVBOX_UTILS" ]]; then
-  echo "Error: devbox-utils not found at: $DEVBOX_UTILS" >&2
+_devbox_setup_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+if [[ ! -f "$_devbox_setup_dir/../lib/import.bash" ]]; then
+  printf '%s\n' "Error: Devbox importer not found: $_devbox_setup_dir/../lib/import.bash" >&2
   exit 1
 fi
 # shellcheck disable=SC1090
-source "$DEVBOX_UTILS"
+source "$_devbox_setup_dir/../lib/import.bash"
+import output
+unset _devbox_setup_dir
 
 # Accept all term of services
 conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main
@@ -36,7 +38,7 @@ TORCH_CONFIGS["1.12.0"]="0.13.0:1.12.0 10.2 11.3 11.6 cpuonly"
 # Display available PyTorch versions with numbered options, sorted by version
 info "Available PyTorch versions:"
 TORCH_KEYS=("${!TORCH_CONFIGS[@]}")
-sorted_versions=$(echo "${TORCH_KEYS[@]}" | tr ' ' '\n' | sort -Vr)
+sorted_versions="$(echo "${TORCH_KEYS[@]}" | tr ' ' '\n' | sort -Vr)"
 version_index=1
 for version in $sorted_versions; do
   echo -e "${YELLOW}[$version_index] $version${NC}"
@@ -49,12 +51,12 @@ if [[ ! "$version_index" =~ ^[0-9]+$ ]] || ((version_index < 1 || version_index 
   echo -e "${RED}Invalid selection.${NC}"
   exit 1
 fi
-selected_version=$(echo "$sorted_versions" | sed -n "${version_index}p")
+selected_version="$(echo "$sorted_versions" | sed -n "${version_index}p")"
 
 # Get corresponding torchvision, torchaudio versions and available CUDA versions
-torchvision_version=$(echo "${TORCH_CONFIGS[$selected_version]}" | cut -d' ' -f1 | cut -d':' -f1)
-torchaudio_version=$(echo "${TORCH_CONFIGS[$selected_version]}" | cut -d' ' -f1 | cut -d':' -f2)
-available_cudas=$(echo "${TORCH_CONFIGS[$selected_version]}" | cut -d' ' -f2-)
+torchvision_version="$(echo "${TORCH_CONFIGS[$selected_version]}" | cut -d' ' -f1 | cut -d':' -f1)"
+torchaudio_version="$(echo "${TORCH_CONFIGS[$selected_version]}" | cut -d' ' -f1 | cut -d':' -f2)"
+available_cudas="$(echo "${TORCH_CONFIGS[$selected_version]}" | cut -d' ' -f2-)"
 
 # Display available CUDA versions with numbered options
 info "Available CUDA versions for PyTorch $selected_version:"

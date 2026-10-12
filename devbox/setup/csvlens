@@ -5,18 +5,20 @@ set -Eeuo pipefail
 CSVLENS_VERSION="0.15.1"
 CSVLENS_BIN=""
 
-DEVBOX_UTILS="${DEVBOX_UTILS:-${DEVBOX_ROOT:-${HOME}/.devbox}/libexec/devbox-utils}"
-if [[ ! -f "$DEVBOX_UTILS" ]]; then
-  echo "Error: devbox-utils not found at: $DEVBOX_UTILS" >&2
+_devbox_setup_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+if [[ ! -f "$_devbox_setup_dir/../lib/import.bash" ]]; then
+  printf '%s\n' "Error: Devbox importer not found: $_devbox_setup_dir/../lib/import.bash" >&2
   exit 1
 fi
 # shellcheck disable=SC1090
-source "$DEVBOX_UTILS"
+source "$_devbox_setup_dir/../lib/import.bash"
+import output platform
+unset _devbox_setup_dir
 
 csvlens_default_url() {
   local os arch target
-  os="$(uname -s)"
-  arch="$(uname -m)"
+  os="$(detect_os)"
+  arch="$(detect_arch)"
 
   case "$arch" in
   arm64 | aarch64)
@@ -32,10 +34,10 @@ csvlens_default_url() {
   esac
 
   case "$os" in
-  Darwin)
+  macos)
     target="apple-darwin"
     ;;
-  Linux)
+  linux)
     target="unknown-linux-gnu"
     ;;
   *)
@@ -138,7 +140,7 @@ install() {
   fi
 
   local tmp_dir
-  tmp_dir=$(mktemp -d)
+  tmp_dir="$(mktemp -d)"
 
   info "Downloading csvlens from $CSVLENS_BIN -> $tmp_dir..."
   curl -L --progress-bar "$CSVLENS_BIN" -o "$tmp_dir/csvlens.tar.xz" -f

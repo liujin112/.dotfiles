@@ -5,8 +5,6 @@
 
 set -e
 
-source "${BASH_SOURCE%/*}/devbox-utils"
-
 [ -n "$DEVBOX_DEBUG" ] && set -x
 
 setup_dirs=()
@@ -64,10 +62,10 @@ case "$1" in
   exit
   ;;
 --list | -l)
-  info "Finding scripts in:"
-  printf " - %s\n" "${setup_dirs[@]}"
-  success "Available setup scripts:"
-  printf " - %s\n" "${script_names[@]}"
+  printf 'Finding scripts in:\n'
+  printf ' - %s\n' "${setup_dirs[@]}"
+  printf 'Available setup scripts:\n'
+  printf ' - %s\n' "${script_names[@]}"
   exit
   ;;
 -*)
@@ -87,6 +85,6 @@ for i in "${!script_names[@]}"; do
   fi
 done
 
-info "Finding scripts in:"
-printf " - %s\n" "${setup_dirs[@]}"
-error "Setup script not found: ${SCRIPT_NAME}"
+printf 'Finding scripts in:\n'
+printf ' - %s\n' "${setup_dirs[@]}"
+printf 'Error: Setup script not found: %s\n' "$SCRIPT_NAME" >&2

@@ -43,6 +43,82 @@ die() {
   exit 1
 }
 
+configure_rc_block() {
+  local rc_file="${1:-}"
+  local start_marker="${2:-}"
+  local end_marker="${3:-}"
+  local content="${4:-}"
+  local warning="# !! Contents within this block are managed by devbox/install.sh"
+  local start_count end_count content_file output_file
+
+  if [[ -z "$rc_file" || -z "$start_marker" || -z "$end_marker" || -z "$content" ]]; then
+    echo "Error: configure_rc_block: missing required arguments" >&2
+    return 1
+  fi
+
+  mkdir -p "$(dirname "$rc_file")"
+  [[ -e "$rc_file" || -L "$rc_file" ]] || touch "$rc_file"
+
+  start_count="$(awk -v marker="$start_marker" '$0 == marker { count++ } END { print count + 0 }' "$rc_file")"
+  end_count="$(awk -v marker="$end_marker" '$0 == marker { count++ } END { print count + 0 }' "$rc_file")"
+
+  if [[ "$start_count" -eq 0 && "$end_count" -eq 0 ]]; then
+    {
+      printf '\n%s\n' "$start_marker"
+      printf '%s\n' "$warning"
+      printf '%s\n' "$content"
+      printf '%s\n\n' "$end_marker"
+    } >>"$rc_file"
+    return 0
+  fi
+
+  if [[ "$start_count" -ne 1 || "$end_count" -ne 1 ]]; then
+    echo "Error: malformed devbox block in $rc_file" >&2
+    return 1
+  fi
+
+  content_file="$(mktemp "${TMPDIR:-/tmp}/devbox-content.XXXXXX")" || return 1
+  output_file="$(mktemp "${TMPDIR:-/tmp}/devbox-rc.XXXXXX")" || {
+    rm -f "$content_file"
+    return 1
+  }
+  printf '%s\n' "$content" >"$content_file"
+
+  if ! awk -v start="$start_marker" -v end="$end_marker" -v warning="$warning" -v content_file="$content_file" '
+    $0 == start {
+      if (inside || seen_start) exit 2
+      seen_start = 1
+      inside = 1
+      print start
+      print warning
+      while ((getline line < content_file) > 0) print line
+      close(content_file)
+      next
+    }
+    $0 == end {
+      if (!inside || seen_end) exit 2
+      seen_end = 1
+      inside = 0
+      print end
+      next
+    }
+    !inside { print }
+    END {
+      if (!seen_start || !seen_end || inside) exit 2
+    }
+  ' "$rc_file" >"$output_file"; then
+    echo "Error: malformed devbox block in $rc_file" >&2
+    rm -f "$content_file" "$output_file"
+    return 1
+  fi
+
+  if ! cat "$output_file" >"$rc_file"; then
+    rm -f "$content_file" "$output_file"
+    return 1
+  fi
+  rm -f "$content_file" "$output_file"
+}
+
 # Directory holding libexec/devbox: this checkout, an existing ~/.dotfiles, or a
 # fresh clone. An existing checkout is not pulled; it may be on a work branch.
 resolve_source() {
@@ -86,9 +162,6 @@ install_devbox() {
   elif [[ "$(cd "$DEVBOX_ROOT" && pwd -P)" != "$src" ]]; then
     die "$DEVBOX_ROOT exists and is not a symlink; move it aside first"
   fi
-
-  # shellcheck disable=SC1091
-  source "$src/libexec/devbox-utils"
 
   for shell in bash zsh; do
     rc="$HOME/.bashrc"

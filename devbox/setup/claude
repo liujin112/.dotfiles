@@ -6,13 +6,15 @@ ACTION="install"
 INSTALLER_URL="${CLAUDE_INSTALLER_URL:-https://claude.ai/install.sh}"
 LAUNCH_AFTER_INSTALL=0
 
-DEVBOX_UTILS="${DEVBOX_UTILS:-${DEVBOX_ROOT:-${HOME}/.devbox}/libexec/devbox-utils}"
-if [[ ! -f "$DEVBOX_UTILS" ]]; then
-  echo "Error: devbox-utils not found at: $DEVBOX_UTILS" >&2
+_devbox_setup_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+if [[ ! -f "$_devbox_setup_dir/../lib/import.bash" ]]; then
+  printf '%s\n' "Error: Devbox importer not found: $_devbox_setup_dir/../lib/import.bash" >&2
   exit 1
 fi
 # shellcheck disable=SC1090
-source "$DEVBOX_UTILS"
+source "$_devbox_setup_dir/../lib/import.bash"
+import output
+unset _devbox_setup_dir
 
 usage() {
   cat <<EOF

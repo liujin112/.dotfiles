@@ -32,7 +32,7 @@ if enable -f "${BASH_SOURCE%/*}"/../libexec/devbox-realpath.dylib realpath 2>/de
 else
   [ -z "$DEVBOX_NATIVE_EXT" ] || abort "failed to load \`realpath' builtin"
 
-  READLINK=$(type -P readlink)
+  READLINK="$(type -P readlink)"
   [ -n "$READLINK" ] || abort "cannot find readlink - are you missing GNU coreutils?"
 
   resolve_link() {
@@ -65,8 +65,6 @@ else
 fi
 export DEVBOX_ROOT
 
-export DEVBOX_UTILS="${DEVBOX_UTILS:-${DEVBOX_ROOT}/libexec/devbox-utils}"
-
 if [ -z "${DEVBOX_DIR}" ]; then
   DEVBOX_DIR="$PWD"
 fi
@@ -75,7 +73,7 @@ if [ ! -d "$DEVBOX_DIR" ] || [ ! -e "$DEVBOX_DIR" ]; then
   abort "cannot change working directory to \`$DEVBOX_DIR'"
 fi
 
-DEVBOX_DIR=$(cd "$DEVBOX_DIR" && echo "$PWD")
+DEVBOX_DIR="$(cd "$DEVBOX_DIR" && echo "$PWD")"
 export DEVBOX_DIR
 
 shopt -s nullglob

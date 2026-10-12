@@ -1,28 +1,9 @@
-#!/usr/bin/env bash
+# Shared installer helpers for Devbox setup scripts.
+# Load platform.bash before sourcing this file.
 
-# Colors
-RED='\033[0;31m'
-GREEN='\033[1;32m'
-BLUE='\033[1;34m'
-YELLOW='\033[1;33m'
-BOLD='\033[1m'
-NC='\033[0m' # No Color
-
-info() {
-  printf "${BLUE}==>${NC} ${BOLD}%s${NC}\n" "$1"
-}
-
-warning() {
-  printf "${YELLOW}Warning:${NC} %s\n" "$1" >&2
-}
-
-error() {
-  printf "${RED}Error:${NC} %s\n" "$1" >&2
-}
-
-success() {
-  printf "${GREEN}==>${NC} ${BOLD}%s${NC}\n" "$1"
-}
+if [[ -n "${_DEVBOX_INSTALLER_BASH_LOADED:-}" ]]; then
+  return 0
+fi
 
 # --------------------------------------------------
 # detect_sed
@@ -51,9 +32,14 @@ success() {
 #   - Callers should rely on `$SED` instead of invoking `sed` directly
 # --------------------------------------------------
 detect_sed() {
+  local os
+  if ! os="$(detect_os)"; then
+    return 1
+  fi
+
   SED="sed"
 
-  if [[ "$(uname -s)" == "Darwin" ]]; then
+  if [[ "$os" == "macos" ]]; then
     if command -v gsed >/dev/null 2>&1; then
       SED="gsed"
     else
@@ -117,7 +103,7 @@ configure_rc_block() {
 
   # Escape newlines for sed's c command
   local escaped_content
-  escaped_content=$(echo "$content" | "$SED" 's/$/\\/g' | "$SED" '$ s/\\$//')
+  escaped_content="$(echo "$content" | "$SED" 's/$/\\/g' | "$SED" '$ s/\\$//')"
 
   # Replace or append block
   if grep -q "$start_marker" "$rc_file"; then
@@ -195,12 +181,12 @@ remove_rc_block() {
 #   apt-get | dnf | yum | brew | unsupported
 # --------------------------------------------------
 detect_package_manager() {
-  local OS
-  OS="$(uname -s 2>/dev/null || true)"
+  local os
+  os="$(detect_os 2>/dev/null || true)"
 
-  case "$OS" in
-  Darwin) command -v brew >/dev/null 2>&1 && echo "brew" || echo "unsupported" ;;
-  Linux)
+  case "$os" in
+  macos) command -v brew >/dev/null 2>&1 && echo "brew" || echo "unsupported" ;;
+  linux)
     if [[ -f /etc/os-release ]]; then
       # shellcheck disable=SC1091
       . /etc/os-release
@@ -223,3 +209,5 @@ detect_package_manager() {
   *) echo "unsupported" ;;
   esac
 }
+
+_DEVBOX_INSTALLER_BASH_LOADED=1

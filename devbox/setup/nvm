@@ -7,13 +7,15 @@ NVM_DIR="${NVM_DIR:-${HOME}/.nvm}"
 NVM_VERSION=""
 INSTALL_LTS=0
 
-DEVBOX_UTILS="${DEVBOX_UTILS:-${DEVBOX_ROOT:-${HOME}/.devbox}/libexec/devbox-utils}"
-if [[ ! -f "$DEVBOX_UTILS" ]]; then
-  echo "Error: devbox-utils not found at: $DEVBOX_UTILS" >&2
+_devbox_setup_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+if [[ ! -f "$_devbox_setup_dir/../lib/import.bash" ]]; then
+  printf '%s\n' "Error: Devbox importer not found: $_devbox_setup_dir/../lib/import.bash" >&2
   exit 1
 fi
 # shellcheck disable=SC1090
-source "$DEVBOX_UTILS"
+source "$_devbox_setup_dir/../lib/import.bash"
+import output installer
+unset _devbox_setup_dir
 
 usage() {
   cat <<EOF
@@ -130,12 +132,12 @@ configure_nvm_rc() {
     configured_nvm_dir="$NVM_DIR"
   fi
 
-  content=$(cat <<EOF
+  content="$(cat <<EOF
 export NVM_DIR="$configured_nvm_dir"
 [ -s "\$NVM_DIR/nvm.sh" ] && \. "\$NVM_DIR/nvm.sh"
 [ -s "\$NVM_DIR/bash_completion" ] && \. "\$NVM_DIR/bash_completion"
 EOF
-  )
+  )"
 
   configure_rc_block \
     "$rc_file" \

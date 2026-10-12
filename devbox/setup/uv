@@ -8,13 +8,15 @@ UV_VERSION=""
 
 ACTION="install"
 
-DEVBOX_UTILS="${DEVBOX_UTILS:-${DEVBOX_ROOT:-${HOME}/.devbox}/libexec/devbox-utils}"
-if [[ ! -f "$DEVBOX_UTILS" ]]; then
-  echo "Error: devbox-utils not found at: $DEVBOX_UTILS" >&2
+_devbox_setup_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+if [[ ! -f "$_devbox_setup_dir/../lib/import.bash" ]]; then
+  printf '%s\n' "Error: Devbox importer not found: $_devbox_setup_dir/../lib/import.bash" >&2
   exit 1
 fi
 # shellcheck disable=SC1090
-source "$DEVBOX_UTILS"
+source "$_devbox_setup_dir/../lib/import.bash"
+import output platform
+unset _devbox_setup_dir
 
 usage() {
   cat <<EOF
@@ -76,9 +78,9 @@ install() {
   fi
 
   local os
-  os=$(uname -s)
+  os="$(detect_os)"
 
-  if [[ "$os" == "Darwin" ]]; then
+  if [[ "$os" == "macos" ]]; then
     # On macOS, only allow installation via Homebrew
     if ! command -v brew &>/dev/null; then
       error "Homebrew is not installed; please install Homebrew first"
@@ -87,7 +89,7 @@ install() {
 
     info "Installing uv via Homebrew..."
     brew install uv
-  elif [[ "$os" == "Linux" ]]; then
+  elif [[ "$os" == "linux" ]]; then
     install_standalone
   else
     error "Unsupported OS: $os. Please see https://docs.astral.sh/uv/getting-started/installation/ for manual installation instructions."
@@ -104,9 +106,9 @@ install() {
 uninstall() {
   # Uninstall uv using the corresponding method per platform.
   local os
-  os=$(uname -s)
+  os="$(detect_os)"
 
-  if [[ "$os" == "Darwin" ]]; then
+  if [[ "$os" == "macos" ]]; then
     # On macOS, only allow uninstall via Homebrew
     if ! command -v brew &>/dev/null; then
       error "Homebrew is not installed; cannot uninstall uv via brew"
@@ -121,7 +123,7 @@ uninstall() {
       warning "uv is not installed via Homebrew"
       error "Nothing to remove"
     fi
-  elif [[ "$os" == "Linux" ]]; then
+  elif [[ "$os" == "linux" ]]; then
     # On Linux, follow the official guidance: clean cache and remove binaries.
     if command -v uv &>/dev/null; then
       info "Cleaning uv cache (uv cache clean)..."

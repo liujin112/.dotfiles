@@ -5,17 +5,21 @@ set -Eeuo pipefail
 JLESS_VERSION="0.9.0"
 JLESS_BIN=""
 
-DEVBOX_UTILS="${DEVBOX_UTILS:-${DEVBOX_ROOT:-${HOME}/.devbox}/libexec/devbox-utils}"
-if [[ ! -f "$DEVBOX_UTILS" ]]; then
-  echo "Error: devbox-utils not found at: $DEVBOX_UTILS" >&2
+_devbox_setup_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+if [[ ! -f "$_devbox_setup_dir/../lib/import.bash" ]]; then
+  printf '%s\n' "Error: Devbox importer not found: $_devbox_setup_dir/../lib/import.bash" >&2
   exit 1
 fi
 # shellcheck disable=SC1090
-source "$DEVBOX_UTILS"
+source "$_devbox_setup_dir/../lib/import.bash"
+import output platform installer
+unset _devbox_setup_dir
 
 install_dependency() {
   # Dependencies are only required for standalone (downloaded) jless on Linux.
-  [[ "$(uname -s)" == "Linux" ]] || return 0
+  local os
+  os="$(detect_os)"
+  [[ "$os" == "linux" ]] || return 0
 
   local pkg_mgr
   pkg_mgr="$(detect_package_manager)"
@@ -51,8 +55,8 @@ install_dependency() {
 
 jless_default_url() {
   local os arch target
-  os="$(uname -s)"
-  arch="$(uname -m)"
+  os="$(detect_os)"
+  arch="$(detect_arch)"
 
   case "$arch" in
   arm64 | aarch64)
@@ -68,10 +72,10 @@ jless_default_url() {
   esac
 
   case "$os" in
-  Darwin)
+  macos)
     target="${arch}-apple-darwin"
     ;;
-  Linux)
+  linux)
     if [[ "$arch" != "x86_64" ]]; then
       error "Unsupported Linux architecture for standalone jless: $arch (use --url to specify a custom download URL)"
       return 1
@@ -177,7 +181,8 @@ install() {
     JLESS_BIN="$(jless_default_url)"
   fi
 
-  local tmp_dir=$(mktemp -d)
+  local tmp_dir
+  tmp_dir="$(mktemp -d)"
 
   info "Downloading jless from $JLESS_BIN -> $tmp_dir..."
   curl -L --progress-bar "$JLESS_BIN" -o "$tmp_dir/jless.zip" -f

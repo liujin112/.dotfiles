@@ -8,13 +8,15 @@ INSTALL_DIR="${LAZYGIT_INSTALL_DIR:-${HOME}/.local/bin}"
 INSTALL_DIR_SET="${LAZYGIT_INSTALL_DIR:+yes}"
 TMP_DIR=""
 
-DEVBOX_UTILS="${DEVBOX_UTILS:-${DEVBOX_ROOT:-${HOME}/.devbox}/libexec/devbox-utils}"
-if [[ ! -f "$DEVBOX_UTILS" ]]; then
-  echo "Error: devbox-utils not found at: $DEVBOX_UTILS" >&2
+_devbox_setup_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+if [[ ! -f "$_devbox_setup_dir/../lib/import.bash" ]]; then
+  printf '%s\n' "Error: Devbox importer not found: $_devbox_setup_dir/../lib/import.bash" >&2
   exit 1
 fi
 # shellcheck disable=SC1090
-source "$DEVBOX_UTILS"
+source "$_devbox_setup_dir/../lib/import.bash"
+import output platform
+unset _devbox_setup_dir
 
 cleanup() {
   [[ -z "$TMP_DIR" ]] || rm -rf "$TMP_DIR"
@@ -116,21 +118,22 @@ require_value() {
 
 release_platform() {
   local os arch
+  os="$(detect_os)"
+  arch="$(detect_arch)"
 
-  case "$(uname -s)" in
-  Darwin) os="darwin" ;;
-  Linux) os="linux" ;;
+  case "$os" in
+  macos) os="darwin" ;;
+  linux) ;;
   *)
-    error "Unsupported OS: $(uname -s). lazygit provides binaries for macOS and Linux only."
+    error "Unsupported OS: $os. lazygit provides binaries for macOS and Linux only."
     return 1
     ;;
   esac
 
-  case "$(uname -m)" in
-  arm64 | aarch64) arch="arm64" ;;
-  x86_64 | amd64) arch="x86_64" ;;
+  case "$arch" in
+  arm64 | x86_64) ;;
   *)
-    error "Unsupported architecture: $(uname -m). lazygit provides x86_64 and arm64 binaries only."
+    error "Unsupported architecture: $arch. lazygit provides x86_64 and arm64 binaries only."
     return 1
     ;;
   esac
@@ -283,7 +286,8 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-if [[ "$(uname -s)" == "Darwin" ]]; then
+os="$(detect_os)"
+if [[ "$os" == "macos" ]]; then
   manage_homebrew
   exit 0
 fi

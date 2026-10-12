@@ -2,13 +2,15 @@
 
 set -Eeuo pipefail
 
-DEVBOX_UTILS="${DEVBOX_UTILS:-${DEVBOX_ROOT:-${HOME}/.devbox}/libexec/devbox-utils}"
-if [[ ! -f "$DEVBOX_UTILS" ]]; then
-  echo "Error: devbox-utils not found at: $DEVBOX_UTILS" >&2
+_devbox_setup_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+if [[ ! -f "$_devbox_setup_dir/../lib/import.bash" ]]; then
+  printf '%s\n' "Error: Devbox importer not found: $_devbox_setup_dir/../lib/import.bash" >&2
   exit 1
 fi
 # shellcheck disable=SC1090
-source "$DEVBOX_UTILS"
+source "$_devbox_setup_dir/../lib/import.bash"
+import output platform installer
+unset _devbox_setup_dir
 
 function nvim_install_linux() {
   # Download the latest pre-built Neovim binaries and install them under /opt/nvim
@@ -39,23 +41,28 @@ function nvim_configure_linux() {
     "$content"
 }
 
-case "$(uname)" in
-Linux*)
+os="$(detect_os)"
+case "$os" in
+linux)
+  arch="$(detect_arch)"
+  if [[ "$arch" != "x86_64" ]]; then
+    error "Unsupported Linux architecture: $arch"
+    exit 1
+  fi
   info "Installing Neovim for Linux..."
   nvim_install_linux
 
   info "Configuring PATH for Neovim..."
-  # Configure both Bash and Zsh rc files to include Neovim in PATH
   nvim_configure_linux ~/.bashrc
   nvim_configure_linux ~/.zshrc
   success "Neovim installation and configuration complete."
   ;;
-Darwin*)
+macos)
   info "Installing Neovim for MacOS via brew..."
   brew install neovim
   success "Neovim installation complete."
   ;;
 *)
-  error "Unsupported OS: $(uname)"
+  error "Unsupported OS: $os"
   ;;
 esac

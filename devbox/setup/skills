@@ -24,13 +24,15 @@ NO_PATH_UPDATE="${SKILLS_NO_PATH_UPDATE:-0}"
 INSTALLER_URL="${SKILLS_INSTALLER_URL:-$DEFAULT_INSTALLER_URL}"
 INSTALLER_SHA256="${SKILLS_INSTALLER_SHA256:-}"
 
-DEVBOX_UTILS="${DEVBOX_UTILS:-${DEVBOX_ROOT:-${HOME}/.devbox}/libexec/devbox-utils}"
-if [[ ! -f "$DEVBOX_UTILS" ]]; then
-  echo "Error: devbox-utils not found at: $DEVBOX_UTILS" >&2
+_devbox_setup_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+if [[ ! -f "$_devbox_setup_dir/../lib/import.bash" ]]; then
+  printf '%s\n' "Error: Devbox importer not found: $_devbox_setup_dir/../lib/import.bash" >&2
   exit 1
 fi
 # shellcheck disable=SC1090
-source "$DEVBOX_UTILS"
+source "$_devbox_setup_dir/../lib/import.bash"
+import output platform
+unset _devbox_setup_dir
 
 usage() {
   cat <<EOF
@@ -212,26 +214,17 @@ classify_library() {
 }
 
 check_supported_platform() {
-  local os arch
-  os="$(uname -s)"
-  arch="$(uname -m)"
-
   if [[ -n "$TARGET" ]]; then
     return 0
   fi
 
-  case "$os" in
-  Darwin | Linux) ;;
+  local os arch
+  os="$(detect_os)"
+  arch="$(detect_arch)"
+  case "$os/$arch" in
+  macos/x86_64 | macos/arm64 | linux/x86_64 | linux/arm64) return 0 ;;
   *)
-    error "Unsupported OS: $os. Supply --target only if upstream publishes a compatible binary."
-    return 1
-    ;;
-  esac
-
-  case "$arch" in
-  x86_64 | amd64 | arm64 | aarch64) ;;
-  *)
-    error "Unsupported architecture: $arch. Supply --target only if upstream publishes a compatible binary."
+    error "Unsupported platform: $os/$arch. Supply --target only if upstream publishes a compatible binary."
     return 1
     ;;
   esac

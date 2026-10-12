@@ -2,13 +2,15 @@
 
 set -Eeuo pipefail
 
-DEVBOX_UTILS="${DEVBOX_UTILS:-${DEVBOX_ROOT:-${HOME}/.devbox}/libexec/devbox-utils}"
-if [[ ! -f "$DEVBOX_UTILS" ]]; then
-  echo "Error: devbox-utils not found at: $DEVBOX_UTILS" >&2
+_devbox_setup_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+if [[ ! -f "$_devbox_setup_dir/../lib/import.bash" ]]; then
+  printf '%s\n' "Error: Devbox importer not found: $_devbox_setup_dir/../lib/import.bash" >&2
   exit 1
 fi
 # shellcheck disable=SC1090
-source "$DEVBOX_UTILS"
+source "$_devbox_setup_dir/../lib/import.bash"
+import output platform installer
+unset _devbox_setup_dir
 
 usage() {
   cat <<EOF
@@ -28,9 +30,10 @@ EOF
 
 uninstall() {
   local removed_any=0
-  
-  OS="$(uname -s)"
-  if [[ "$OS" == "Darwin" ]]; then
+  local os
+
+  os="$(detect_os)"
+  if [[ "$os" == "macos" ]]; then
     if command -v brew >/dev/null 2>&1; then
       if brew list pyenv-virtualenv >/dev/null 2>&1; then
         info "Uninstalling pyenv-virtualenv via Homebrew..."
@@ -88,9 +91,9 @@ ensure_homebrew() {
 # Install Linux dependencies
 # --------------------------------
 install_build_deps() {
-  local OS
-  OS="$(uname -s)"
-  if [[ "$OS" == "Darwin" ]]; then
+  local os
+  os="$(detect_os)"
+  if [[ "$os" == "macos" ]]; then
     info "Detected macOS — installing pyenv build dependencies via Homebrew"
 
     ensure_homebrew
@@ -140,8 +143,9 @@ install_build_deps() {
 # Install Pyenv
 # --------------------------------
 install_pyenv() {
-  OS="$(uname -s)"
-  if [[ "$OS" == "Darwin" ]]; then
+  local os
+  os="$(detect_os)"
+  if [[ "$os" == "macos" ]]; then
     info "Detected macOS"
 
     ensure_homebrew
@@ -192,7 +196,7 @@ configure_pyenv_rc() {
   local rc_file="$1"
   local shell_name="$2"
   local content
-  content=$(cat <<EOF
+  content="$(cat <<EOF
 export PYENV_ROOT="\$HOME/.pyenv"
 [[ -d "\$PYENV_ROOT/bin" ]] && export PATH="\$PYENV_ROOT/bin:\$PATH"
 if command -v pyenv >/dev/null 2>&1; then
@@ -200,7 +204,7 @@ if command -v pyenv >/dev/null 2>&1; then
   eval "\$(pyenv virtualenv-init -)"
 fi
 EOF
-  )
+  )"
 
   configure_rc_block \
     "$rc_file" \

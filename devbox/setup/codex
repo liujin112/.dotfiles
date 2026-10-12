@@ -10,13 +10,15 @@ INSTALLER_URL="https://chatgpt.com/codex/install.sh"
 NON_INTERACTIVE=1
 FORCE_REMOVE_BIN=0
 
-DEVBOX_UTILS="${DEVBOX_UTILS:-${DEVBOX_ROOT:-${HOME}/.devbox}/libexec/devbox-utils}"
-if [[ ! -f "$DEVBOX_UTILS" ]]; then
-  echo "Error: devbox-utils not found at: $DEVBOX_UTILS" >&2
+_devbox_setup_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+if [[ ! -f "$_devbox_setup_dir/../lib/import.bash" ]]; then
+  printf '%s\n' "Error: Devbox importer not found: $_devbox_setup_dir/../lib/import.bash" >&2
   exit 1
 fi
 # shellcheck disable=SC1090
-source "$DEVBOX_UTILS"
+source "$_devbox_setup_dir/../lib/import.bash"
+import output platform installer
+unset _devbox_setup_dir
 
 usage() {
   cat <<EOF
@@ -96,21 +98,12 @@ download_installer() {
 
 check_supported_platform() {
   local os arch
-  os="$(uname -s)"
-  arch="$(uname -m)"
-
-  case "$os" in
-  Darwin | Linux) ;;
+  os="$(detect_os)"
+  arch="$(detect_arch)"
+  case "$os/$arch" in
+  macos/x86_64 | macos/arm64 | linux/x86_64 | linux/arm64) return 0 ;;
   *)
-    error "Unsupported OS: $os. This setup script supports macOS and Linux only."
-    return 1
-    ;;
-  esac
-
-  case "$arch" in
-  x86_64 | amd64 | arm64 | aarch64) ;;
-  *)
-    error "Unsupported architecture: $arch"
+    error "Unsupported platform: $os/$arch"
     return 1
     ;;
   esac
@@ -165,7 +158,9 @@ classify_codex_path() {
 
   case "$path" in
   /opt/homebrew/* | /usr/local/*)
-    if [[ "$(uname -s)" == "Darwin" ]]; then
+    local os
+    os="$(detect_os)"
+    if [[ "$os" == "macos" ]]; then
       printf 'possibly-homebrew\n'
       return 0
     fi

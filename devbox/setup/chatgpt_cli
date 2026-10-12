@@ -7,13 +7,15 @@ CHATGPT_CLI_BIN=""
 # Parse options
 ACTION="install"
 
-DEVBOX_UTILS="${DEVBOX_UTILS:-${DEVBOX_ROOT:-${HOME}/.devbox}/libexec/devbox-utils}"
-if [[ ! -f "$DEVBOX_UTILS" ]]; then
-  echo "Error: devbox-utils not found at: $DEVBOX_UTILS" >&2
+_devbox_setup_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+if [[ ! -f "$_devbox_setup_dir/../lib/import.bash" ]]; then
+  printf '%s\n' "Error: Devbox importer not found: $_devbox_setup_dir/../lib/import.bash" >&2
   exit 1
 fi
 # shellcheck disable=SC1090
-source "$DEVBOX_UTILS"
+source "$_devbox_setup_dir/../lib/import.bash"
+import output platform
+unset _devbox_setup_dir
 
 usage() {
   cat <<EOF
@@ -34,7 +36,7 @@ install_from_url() {
   # Download prebuilt binary from the given URL and install it to /usr/local/bin/chatgpt
   local url="$1"
   local tmp_dir
-  tmp_dir=$(mktemp -d)
+  tmp_dir="$(mktemp -d)"
 
   info "Downloading chatgpt-cli from $url -> $tmp_dir..."
   curl -L --progress-bar "$url" -o "$tmp_dir/chatgpt" -f
@@ -53,10 +55,10 @@ install() {
   fi
 
   local os arch
-  os=$(uname -s)
-  arch=$(uname -m)
+  os="$(detect_os)"
+  arch="$(detect_arch)"
 
-  if [[ "$os" == "Darwin" ]]; then
+  if [[ "$os" == "macos" ]]; then
     # On macOS, prefer installing via Homebrew
     if ! command -v brew &>/dev/null; then
       error "Homebrew is not installed; please install Homebrew first"
@@ -69,7 +71,7 @@ install() {
     # On non-macOS systems, choose the correct prebuilt binary based on OS and architecture
     if [[ -z "${CHATGPT_CLI_BIN:-}" ]]; then
       case "$os" in
-      Linux)
+      linux)
         case "$arch" in
         x86_64 | amd64)
           CHATGPT_CLI_BIN="${CHATGPT_CLI_RELEASE_BASE}/chatgpt-linux-amd64"
@@ -77,7 +79,7 @@ install() {
         arm64 | aarch64)
           CHATGPT_CLI_BIN="${CHATGPT_CLI_RELEASE_BASE}/chatgpt-linux-arm64"
           ;;
-        i386 | i686)
+        386 | i386 | i486 | i586 | i686 | x86)
           CHATGPT_CLI_BIN="${CHATGPT_CLI_RELEASE_BASE}/chatgpt-linux-386"
           ;;
         *)
@@ -86,7 +88,7 @@ install() {
           ;;
         esac
         ;;
-      FreeBSD)
+      freebsd)
         case "$arch" in
         x86_64 | amd64)
           CHATGPT_CLI_BIN="${CHATGPT_CLI_RELEASE_BASE}/chatgpt-freebsd-amd64"
@@ -119,7 +121,9 @@ install() {
 
 uninstall() {
   # On macOS, uninstall via Homebrew; otherwise remove the binary directly
-  if [[ "$(uname -s)" == "Darwin" ]]; then
+  local os
+  os="$(detect_os)"
+  if [[ "$os" == "macos" ]]; then
     if ! command -v brew &>/dev/null; then
       error "Homebrew is not installed; cannot uninstall chatgpt-cli via brew"
       exit 1
