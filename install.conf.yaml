@@ -108,6 +108,10 @@
     ~/.tmux/scripts: tmux/scripts
     ~/.config/workmux/config.yaml: config/workmux/config.yaml
     ~/.config/uv/uv.toml: config/uv/uv.toml
+    ~/.config/lazygit/config.yml: # lazygit creates an empty one on first run; replace only that
+      path: config/lazygit/config.yml
+      force: true
+      if: '[ ! -s "$HOME/.config/lazygit/config.yml" ] || [ -L "$HOME/.config/lazygit/config.yml" ]'
     ~/.persistent:
     ~/.shell:
     ~/.devbox:
