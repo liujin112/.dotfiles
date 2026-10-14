@@ -3,6 +3,7 @@
 if status is-interactive
     set fish_greeting ""
     if command -q starship
-        starship init fish | source
+        # Emit the full script directly, avoiding a second process and psub file.
+        starship init fish --print-full-init | source
     end
 end
