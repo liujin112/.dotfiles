@@ -2,9 +2,9 @@
 
 set -Eeuo pipefail
 
-DEFAULT_INSTALLER_COMMIT="a00cbf51d0d9a43419f18a30d55daa93eac3ad3a"
+DEFAULT_INSTALLER_COMMIT="75ecb47892075ace7a35b212ec8a95e8d3990964"
 DEFAULT_INSTALLER_URL="https://raw.githubusercontent.com/yaojie-shen/Skills-Manager-TUI/${DEFAULT_INSTALLER_COMMIT}/install.sh"
-DEFAULT_INSTALLER_SHA256="43f01ba45a9253fad425a0712f170e45dc10f81483cc691ded782d9e98b40b1b"
+DEFAULT_INSTALLER_SHA256="e65c26ab18e4d0d97e9b57d9847173323518c8076214e593e9c1df1e8cbcb617"
 DEFAULT_REPO="yaojie-shen/Skills-Manager-TUI"
 
 ACTION="install"
@@ -14,6 +14,8 @@ ASSUME_YES=0
 INITIALIZE_LIBRARY=1
 VERSION="${SKILLS_VERSION:-latest}"
 VERSION_SET="${SKILLS_VERSION:+yes}"
+CHANNEL="${SKILLS_CHANNEL:-stable}"
+CHANNEL_SET="${SKILLS_CHANNEL:+yes}"
 TARGET="${SKILLS_TARGET:-}"
 TARGET_SET="${SKILLS_TARGET:+yes}"
 INSTALL_DIR="${SKILLS_INSTALL_DIR:-${HOME}/.local/bin}"
@@ -50,6 +52,7 @@ Actions:
 Install options:
   -f, --force                 Reinstall the expected binary
   --version <VERSION>         Install a specific release (default: latest)
+  --channel <CHANNEL>         Release channel: stable or nightly (default: stable)
   --target <TRIPLE>           Override the release target triple
   --install-dir <DIR>         Binary directory (default: ~/.local/bin)
   --repo <OWNER/REPO>         Release repository (default: $DEFAULT_REPO)
@@ -68,13 +71,14 @@ General:
   -h, --help                  Show this help message
 
 Environment:
-  SKILLS_VERSION, SKILLS_TARGET, SKILLS_INSTALL_DIR, SKILLS_REPO
+  SKILLS_VERSION, SKILLS_CHANNEL, SKILLS_TARGET, SKILLS_INSTALL_DIR, SKILLS_REPO
   SKILLS_NO_PATH_UPDATE, SKILLS_HOME
   SKILLS_INSTALLER_URL, SKILLS_INSTALLER_SHA256
 
 Examples:
   devbox setup skills
   devbox setup skills --upgrade
+  devbox setup skills --channel nightly --upgrade
   devbox setup skills --version v0.1.1
   devbox setup skills --status
   devbox setup skills --doctor
@@ -303,7 +307,7 @@ run_installer() (
     return 1
   fi
 
-  args=(--install-dir "$INSTALL_DIR")
+  args=(--install-dir "$INSTALL_DIR" --channel "$CHANNEL")
   if [[ "$VERSION" != "latest" ]]; then
     args+=(--version "$VERSION")
   fi
@@ -410,6 +414,7 @@ Skills Manager status
   PATH state: $path_state
   install directory: $INSTALL_DIR
   selected version: $VERSION
+  release channel: $CHANNEL
   target override: ${TARGET:-none}
   release repository: $REPO
   installer PATH update: $path_update
@@ -486,7 +491,7 @@ install_or_upgrade() {
     return 1
   fi
 
-  if [[ "$ACTION" == "upgrade" || "$FORCE_INSTALL" -eq 1 || -n "$TARGET_SET" || -n "$REPO_SET" ]]; then
+  if [[ "$ACTION" == "upgrade" || "$FORCE_INSTALL" -eq 1 || -n "$CHANNEL_SET" || -n "$TARGET_SET" || -n "$REPO_SET" ]]; then
     should_install=1
   elif ! current="$(binary_version "$expected" 2>/dev/null)"; then
     should_install=1
@@ -540,6 +545,12 @@ while [[ $# -gt 0 ]]; do
     VERSION_SET=yes
     shift
     ;;
+  --channel)
+    require_value "$1" "${2:-}"
+    CHANNEL="$2"
+    CHANNEL_SET=yes
+    shift
+    ;;
   --target)
     require_value "$1" "${2:-}"
     TARGET="$2"
@@ -591,6 +602,17 @@ while [[ $# -gt 0 ]]; do
   shift
 done
 
+case "$CHANNEL" in
+stable | nightly) ;;
+*)
+  error "Invalid channel: $CHANNEL (expected stable or nightly)"
+  exit 1
+  ;;
+esac
+if [[ "$CHANNEL" == "nightly" && -n "$VERSION_SET" ]]; then
+  error "The nightly channel cannot be combined with an explicitly selected version"
+  exit 1
+fi
 if [[ -z "$INSTALL_DIR" || -z "$REPO" || -z "$SKILLS_HOME_DIR" ]]; then
   error "Install directory, repository, and Skills home must not be empty"
   exit 1
