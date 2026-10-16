@@ -10,6 +10,7 @@
     "commit": "",
     "pr": ""
   },
+  "tui": "fullscreen",
   "permissions": {
     "allow": [
       "Bash(git status)",
